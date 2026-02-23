@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Facial Recognition Story</title>
+
+<script defer src="js/face-api.min.js"></script>
+
+<style>
+body {
+margin: 0;
+background: black;
+color: white;
+font-family: Arial, sans-serif;
+overflow-x: hidden;
+font-size: 35px;
+}
+
+.scene {
+height: 100vh;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+text-align: center;
+}
+
+button {
+padding: 20px 30px;
+background: #00ffcc;
+border: none;
+color: black;
+font-weight: bold;
+cursor: pointer;
+border-radius: 8px;
+font-size: 20px;
+}
+
+button:hover {
+background: #00ccaa;
+}
+
+#status {
+margin-top: 15px;
+color: #00ffcc;
+font-size: 18px;
+}
+
+video {
+display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="scene">
+<h1>Facial Recognition</h1>
+<p>Scroll into the AI experience</p>
+</div>
+
+<div class="scene">
+<h2>Activate Live Recognition</h2>
+<button id="start">Begin Scan</button>
+<div id="status"></div>
+</div>
+
+<video id="video" width="720" height="560" autoplay muted></video>
+
+<script src="js/face-api.min.js"></script>
+
+<script>
+
+const video = document.getElementById("video");
+const statusText = document.getElementById("status");
+const startBtn = document.getElementById("start");
+
+async function loadModels() {
+  const MODEL_URL = "models";
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+  ]);
+}
+
+startBtn.addEventListener("click", async () => {
+
+  statusText.innerText = "Loading AI Models...";
+  await loadModels();
+
+  statusText.innerText = "Starting Camera...";
+
+  const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+  video.srcObject = stream;
+
+  video.onloadedmetadata = () => {
+
+    video.play();
+
+    const canvas = faceapi.createCanvasFromMedia(video);
+    document.body.append(canvas);
+
+    const displaySize = {
+      width: video.videoWidth,
+      height: video.videoHeight
+    };
+
+    faceapi.matchDimensions(canvas, displaySize);
+
+    statusText.innerText = "Scanning...";
+
+    setInterval(async () => {
+
+      const detections = await faceapi
+        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks();
+
+      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+
+      const resized = faceapi.resizeResults(detections, displaySize);
+
+      faceapi.draw.drawDetections(canvas, resized);
+      faceapi.draw.drawFaceLandmarks(canvas, resized);
+
+      statusText.innerText = detections.length > 0
+        ? "Face Detected ✔"
+        : "Scanning...";
+
+    }, 100);
+  };
+
+});
+
+</script>
+
+</body>
+</html>
